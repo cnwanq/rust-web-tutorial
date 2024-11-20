@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use axum::extract::{Path, Query, State};
@@ -6,13 +7,13 @@ use axum::http::HeaderMap;
 use axum::{response::Html, routing::get, Router};
 
 struct MyConfig {
-    config_string: String,
+    counter: AtomicUsize,
 }
 
 #[tokio::main]
 async fn main() {
     let shared_config = Arc::new(MyConfig {
-        config_string: "My config value".to_string(),
+        counter: AtomicUsize::new(0),
     });
 
     // build our application with a single route
@@ -31,7 +32,10 @@ async fn main() {
 
 // 路由处理函数
 async fn handler(State(config): State<Arc<MyConfig>>) -> Html<String> {
-    Html(format!("<h1>Hello, State: {:}!</h1>", config.config_string))
+    config
+        .counter
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    Html(format!("<h1>Hello, Counter: {:?}!</h1>", config.counter))
 }
 
 // 添加路由参数提取功能
