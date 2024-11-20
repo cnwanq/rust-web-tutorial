@@ -3,10 +3,11 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use axum::extract::{Path, Query, State};
-use axum::http::HeaderMap;
+use axum::http::{self, HeaderMap};
+use axum::response::IntoResponse;
 use axum::{response::Html, routing::get, Router};
 
-use axum::Extension;
+use axum::{Extension, Json};
 
 struct MyCounter {
     counter: AtomicUsize,
@@ -62,6 +63,9 @@ async fn main() {
         .route("/book/:id", get(path_extract))
         .route("/book", get(query_extract))
         .route("/header", get(header_extract))
+        .route("/counter/inc", get(counter_inc_handler))
+        .route("/reqwest", get(reqwest_handler))
+        .route("/http/status", get(http_status_handler))
         .layer(Extension(shared_text))
         .layer(Extension(shared_counter));
 
@@ -100,4 +104,26 @@ async fn query_extract(Query(params): Query<HashMap<String, String>>) -> Html<St
 
 async fn header_extract(headers: HeaderMap) -> Html<String> {
     Html(format!("{:?}", headers))
+}
+
+async fn counter_inc_handler(Extension(counter): Extension<Arc<MyCounter>>) -> Json<usize> {
+    counter
+        .counter
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    Json(counter.counter.load(std::sync::atomic::Ordering::Relaxed))
+}
+
+async fn reqwest_handler() -> Html<String> {
+    let cur_counter = reqwest::get("http://127.0.0.1:3000/counter/inc")
+        .await
+        .unwrap()
+        .json::<i32>()
+        .await
+        .unwrap();
+
+    Html(format!("{:?}", cur_counter))
+}
+
+async fn http_status_handler() -> impl IntoResponse {
+    (http::StatusCode::OK, "Hello, World!")
 }

@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.7.9", feature = ["http2", "macros", "multipart", "ws"] }
+reqwest = { version = "0.12.9", features = ["json"] }
 tokio = { version = "1.41.1", features = ["full"] }
